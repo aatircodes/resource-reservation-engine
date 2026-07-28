@@ -35,6 +35,22 @@ Currently in active development. Completed so far:
 
 Not yet built: resource and booking domain logic, optimistic locking, idempotency handling, waitlist promotion, load testing, deployment, frontend.
 
+## Progress Tracker
+
+| Phase | Description | Status |
+|---|---|---|
+| 0 | Setup — scaffold, MySQL, JWT config, base structure | Done |
+| — | Authentication — register, login, JWT, role-based access, seeded admin | Done |
+| 1 | Core domain + CRUD (happy path, no concurrency) | Not started |
+| 2 | Optimistic locking + conflict handling | Not started |
+| 3 | Idempotency keys | Not started |
+| 4 | Waitlist + transactional promotion | Not started |
+| 5 | Testing — concurrency, idempotency, waitlist, load test | Not started |
+| 6 | Swagger/OpenAPI | Not started |
+| 7 | React frontend (if time allows) | Not started |
+| 8 | Deployment | Not started |
+| 9 | Documentation — README + design-decisions.md | Ongoing |
+
 ## Authentication
 
 Authentication is email- and password-based, returning a JWT on login. There are two fixed roles:
