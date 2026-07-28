@@ -1,3 +1,22 @@
 spring:
   application:
     name: resource-reservation-engine
+  datasource:
+    url: jdbc:mysql://localhost:3306/reservation_engine
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:391281*MySQL@}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+jwt:
+  secret: ${JWT_SECRET:change-this-to-a-long-random-secret-in-production-min-256-bits}
+  expiration-ms: 86400000
+
+admin:
+  email: ${ADMIN_EMAIL:admin@reservation-engine.local}
+  password: ${ADMIN_PASSWORD:pass123}

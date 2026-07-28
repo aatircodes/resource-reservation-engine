@@ -9,7 +9,6 @@ import java.time.Instant;
 public class RegisterResponse {
 
     private Long id;
-    private String username;
     private String email;
     private Instant createdAt;
 }

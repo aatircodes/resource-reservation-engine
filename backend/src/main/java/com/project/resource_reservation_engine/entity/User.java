@@ -18,9 +18,6 @@ public class User {
     private Long id;
 
     @Column(nullable = false, unique = true)
-    private String username;
-
-    @Column(nullable = false, unique = true)
     private String email;
 
     @Column(nullable = false)
@@ -38,8 +35,7 @@ public class User {
         this.createdAt = Instant.now();
     }
 
-    public User(String username, String email, String password, Role role) {
-        this.username = username;
+    public User(String email, String password, Role role) {
         this.email = email;
         this.password = password;
         this.role = role;
