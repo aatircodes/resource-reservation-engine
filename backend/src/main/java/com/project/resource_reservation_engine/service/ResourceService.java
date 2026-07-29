@@ -8,8 +8,6 @@ import com.project.resource_reservation_engine.repository.ResourceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-
 @Service
 @RequiredArgsConstructor
 public class ResourceService {
@@ -20,7 +18,6 @@ public class ResourceService {
         Resource resource = new Resource();
         resource.setName(request.getName());
         resource.setCapacity(request.getCapacity());
-        resource.setCreatedAt(LocalDateTime.now());
 
         Resource saved = resourceRepository.save(resource);
         return toResponse(saved);

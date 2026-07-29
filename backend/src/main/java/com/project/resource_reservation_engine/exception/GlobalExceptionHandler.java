@@ -42,6 +42,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleResourceNotFound(ResourceNotFoundException ex) {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }
+
+    @ExceptionHandler(ResourceFullyBookedException.class)
+    public ResponseEntity<Map<String, Object>> handleResourceFullyBooked(ResourceFullyBookedException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(DuplicateBookingException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateBooking(DuplicateBookingException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
     @ExceptionHandler({BadCredentialsException.class, UsernameNotFoundException.class})
     public ResponseEntity<Map<String, Object>> handleAuthFailure(RuntimeException ex) {
         return buildResponse(HttpStatus.UNAUTHORIZED, "Invalid email or password");
