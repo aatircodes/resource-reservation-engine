@@ -43,9 +43,14 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
-    @ExceptionHandler(ResourceFullyBookedException.class)
-    public ResponseEntity<Map<String, Object>> handleResourceFullyBooked(ResourceFullyBookedException ex) {
-        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    @ExceptionHandler(BookingConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleBookingConflict(BookingConflictException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", Instant.now());
+        body.put("status", HttpStatus.CONFLICT.value());
+        body.put("error", ex.getMessage());
+        body.put("reason", ex.getReason());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
     @ExceptionHandler(DuplicateBookingException.class)

@@ -6,16 +6,19 @@ import com.project.resource_reservation_engine.entity.Booking;
 import com.project.resource_reservation_engine.entity.BookingStatus;
 import com.project.resource_reservation_engine.entity.Resource;
 import com.project.resource_reservation_engine.entity.User;
+import com.project.resource_reservation_engine.exception.BookingConflictException;
+import com.project.resource_reservation_engine.exception.ConflictReason;
 import com.project.resource_reservation_engine.exception.DuplicateBookingException;
-import com.project.resource_reservation_engine.exception.ResourceFullyBookedException;
 import com.project.resource_reservation_engine.exception.ResourceNotFoundException;
 import com.project.resource_reservation_engine.repository.BookingRepository;
 import com.project.resource_reservation_engine.repository.ResourceRepository;
 import com.project.resource_reservation_engine.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -27,8 +30,10 @@ public class BookingService {
     private final ResourceRepository resourceRepository;
     private final UserRepository userRepository;
 
+    @Transactional
     public BookingResponse createBooking(CreateBookingRequest request, String idempotencyKey) {
         Booking existing = bookingRepository.findByIdempotencyKey(idempotencyKey).orElse(null);
+
         if (existing != null) {
             return toResponse(existing);
         }
@@ -40,13 +45,21 @@ public class BookingService {
 
         boolean alreadyBooked = bookingRepository.existsByUserIdAndResourceIdAndStatus(
                 user.getId(), resource.getId(), BookingStatus.CONFIRMED);
+
         if (alreadyBooked) {
             throw new DuplicateBookingException("You already have an active booking for this resource");
         }
 
-        long confirmedCount = bookingRepository.countByResourceIdAndStatus(resource.getId(), BookingStatus.CONFIRMED);
-        if (confirmedCount >= resource.getCapacity()) {
-            throw new ResourceFullyBookedException("Resource is fully booked");
+        if (resource.getBookedCount() >= resource.getCapacity()) {
+            throw new BookingConflictException(ConflictReason.SLOT_FULL, "Resource is fully booked");
+        }
+
+        resource.setBookedCount(resource.getBookedCount() + 1);
+        try {
+            resourceRepository.saveAndFlush(resource);
+        } catch (ObjectOptimisticLockingFailureException ex) {
+            throw new BookingConflictException(ConflictReason.VERSION_CONFLICT,
+                    "Resource was updated concurrently, please retry");
         }
 
         Booking booking = new Booking();
@@ -59,6 +72,7 @@ public class BookingService {
         return toResponse(saved);
     }
 
+    @Transactional
     public void cancelBooking(Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
@@ -66,6 +80,15 @@ public class BookingService {
         User currentUser = getCurrentUser();
         if (!booking.getUser().getId().equals(currentUser.getId())) {
             throw new AccessDeniedException("You do not have permission to cancel this booking");
+        }
+
+        Resource resource = booking.getResource();
+        resource.setBookedCount(resource.getBookedCount() - 1);
+        try {
+            resourceRepository.saveAndFlush(resource);
+        } catch (ObjectOptimisticLockingFailureException ex) {
+            throw new BookingConflictException(ConflictReason.VERSION_CONFLICT,
+                    "Resource was updated concurrently, please retry");
         }
 
         booking.setStatus(BookingStatus.CANCELLED);

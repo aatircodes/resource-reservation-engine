@@ -34,6 +34,7 @@ public class ResourceService {
                 resource.getId(),
                 resource.getName(),
                 resource.getCapacity(),
+                resource.getCapacity() - resource.getBookedCount(),
                 resource.getCreatedAt()
         );
     }

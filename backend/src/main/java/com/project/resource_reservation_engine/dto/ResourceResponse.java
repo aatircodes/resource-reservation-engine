@@ -11,8 +11,8 @@ import java.time.Instant;
 @AllArgsConstructor
 public class ResourceResponse {
 
-    private Long id;
+     private Long id;
     private String name;
     private Integer capacity;
-    private Instant createdAt;
-}
+    private Integer availableSlots;
+    private Instant createdAt;}

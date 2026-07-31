@@ -26,6 +26,9 @@ public class Resource {
     @Column(nullable = false)
     private Integer capacity;
 
+    @Column(nullable = false)
+    private Integer bookedCount = 0;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 

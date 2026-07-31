@@ -33,8 +33,10 @@ Currently in active development. Completed so far:
 - Project scaffolding (Spring Boot, MySQL, JWT security)
 - Full authentication module: registration, login, JWT issuance, role-based access (ADMIN/USER), seeded admin account on startup
 - Core domain (Phase 1): `Resource` and `Booking` entities with full happy-path CRUD, idempotency-key deduplication, and duplicate-active-booking prevention
+- Optimistic locking (Phase 2): `bookedCount` counter guarded by `@Version`, `SLOT_FULL`/`VERSION_CONFLICT` 409 distinction, verified under real concurrent load with a standalone Java test script
 
-Not yet built: optimistic locking under real contention, waitlist promotion, load testing, deployment, frontend.
+
+Not yet built: waitlist promotion, Swagger/OpenAPI, load testing, deployment, frontend.
 
 ## Progress Tracker
 
@@ -43,7 +45,7 @@ Not yet built: optimistic locking under real contention, waitlist promotion, loa
 | 0 | Setup — scaffold, MySQL, JWT config, base structure | Done |
 | — | Authentication — register, login, JWT, role-based access, seeded admin | Done |
 | 1 | Core domain + CRUD (happy path, no concurrency) | Done |
-| 2 | Optimistic locking + conflict handling | Not started |
+| 2 | Optimistic locking + conflict handling | Done |
 | 3 | Idempotency keys | Partially done (see below) |
 | 4 | Waitlist + transactional promotion | Not started |
 | 5 | Testing — concurrency, idempotency, waitlist, load test | Not started |
