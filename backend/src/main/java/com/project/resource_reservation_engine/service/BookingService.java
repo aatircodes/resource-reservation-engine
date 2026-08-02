@@ -43,15 +43,24 @@ public class BookingService {
         Resource resource = resourceRepository.findById(request.getResourceId())
                 .orElseThrow(() -> new ResourceNotFoundException("Resource not found"));
 
-        boolean alreadyBooked = bookingRepository.existsByUserIdAndResourceIdAndStatus(
+        boolean alreadyConfirmed = bookingRepository.existsByUserIdAndResourceIdAndStatus(
                 user.getId(), resource.getId(), BookingStatus.CONFIRMED);
+        boolean alreadyWaitlisted = bookingRepository.existsByUserIdAndResourceIdAndStatus(
+                user.getId(), resource.getId(), BookingStatus.WAITLISTED);
 
-        if (alreadyBooked) {
-            throw new DuplicateBookingException("You already have an active booking for this resource");
+        if (alreadyConfirmed || alreadyWaitlisted) {
+            throw new DuplicateBookingException("You already have an active booking or waitlist entry for this resource");
         }
 
         if (resource.getBookedCount() >= resource.getCapacity()) {
-            throw new BookingConflictException(ConflictReason.SLOT_FULL, "Resource is fully booked");
+            Booking waitlisted = new Booking();
+            waitlisted.setUser(user);
+            waitlisted.setResource(resource);
+            waitlisted.setStatus(BookingStatus.WAITLISTED);
+            waitlisted.setIdempotencyKey(idempotencyKey);
+
+            Booking savedWaitlisted = bookingRepository.save(waitlisted);
+            return toResponse(savedWaitlisted);
         }
 
         resource.setBookedCount(resource.getBookedCount() + 1);
@@ -83,16 +92,30 @@ public class BookingService {
         }
 
         Resource resource = booking.getResource();
-        resource.setBookedCount(resource.getBookedCount() - 1);
-        try {
-            resourceRepository.saveAndFlush(resource);
-        } catch (ObjectOptimisticLockingFailureException ex) {
-            throw new BookingConflictException(ConflictReason.VERSION_CONFLICT,
-                    "Resource was updated concurrently, please retry");
+        boolean wasConfirmed = booking.getStatus() == BookingStatus.CONFIRMED;
+
+        if (wasConfirmed) {
+            resource.setBookedCount(resource.getBookedCount() - 1);
+            try {
+                resourceRepository.saveAndFlush(resource);
+            } catch (ObjectOptimisticLockingFailureException ex) {
+                throw new BookingConflictException(ConflictReason.VERSION_CONFLICT,
+                        "Resource was updated concurrently, please retry");
+            }
         }
 
         booking.setStatus(BookingStatus.CANCELLED);
         bookingRepository.save(booking);
+
+       if (wasConfirmed) {
+            bookingRepository.findFirstByResourceIdAndStatusOrderByCreatedAtAscIdAsc(resource.getId(), BookingStatus.WAITLISTED)
+                    .ifPresent(promoted -> {
+                        resource.setBookedCount(resource.getBookedCount() + 1);
+                        resourceRepository.saveAndFlush(resource);
+                        promoted.setStatus(BookingStatus.CONFIRMED);
+                        bookingRepository.save(promoted);
+                    });
+        }
     }
 
     public List<BookingResponse> getBookingsForUser() {
@@ -110,13 +133,21 @@ public class BookingService {
     }
 
     private BookingResponse toResponse(Booking booking) {
+       Integer waitlistPosition = null;
+        if (booking.getStatus() == BookingStatus.WAITLISTED) {
+            long ahead = bookingRepository.countAheadInWaitlist(
+                    booking.getResource().getId(), BookingStatus.WAITLISTED, booking.getCreatedAt(), booking.getId());
+            waitlistPosition = (int) ahead + 1;
+        }
+
         return new BookingResponse(
                 booking.getId(),
                 booking.getResource().getId(),
                 booking.getResource().getName(),
                 booking.getStatus(),
                 booking.getCreatedAt(),
-                booking.getUpdatedAt()
+                booking.getUpdatedAt(),
+                waitlistPosition
         );
     }
 }

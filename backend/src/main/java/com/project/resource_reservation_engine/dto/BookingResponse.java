@@ -18,4 +18,5 @@ public class BookingResponse {
     private BookingStatus status;
     private Instant createdAt;
     private Instant updatedAt;
+    private Integer waitlistPosition;
 }
