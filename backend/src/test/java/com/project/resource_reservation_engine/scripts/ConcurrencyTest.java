@@ -14,14 +14,14 @@ public class ConcurrencyTest {
 
     static final String BASE_URL = "http://localhost:8080";
 
-    static final String ADMIN_TOKEN = "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJhZG1pbkByZXNlcnZhdGlvbi1lbmdpbmUubG9jYWwiLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3ODU2NjIwMjUsImV4cCI6MTc4NTc0ODQyNX0.Pgw0BfcHIdPp2qMH-hAEHS2YNS2o3tyGi6DIZ3wbMOPGLHONnmRzNGr1hyAapDnH";
+    static final String ADMIN_TOKEN = "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJhZG1pbkByZXNlcnZhdGlvbi1lbmdpbmUubG9jYWwiLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3ODU3NjMzNzQsImV4cCI6MTc4NTg0OTc3NH0.dTaQoPDDBL7BD8s4ImlUEBQlCjDirqQwJzymWGAFkPYe8-mEpYibUOXTzLnkiLVK";
 
     static final List<String> USER_TOKENS = List.of(
-            "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0dXNlcjFAZXhhbXBsZS5jb20iLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NTY2MjAyOSwiZXhwIjoxNzg1NzQ4NDI5fQ.1xd3DUAmUM3zCtexs5yCh5pkMdPGdz_28Avk2JuhyFt8knIIlsRE97iKe-Qx2uT3",
-            "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0dXNlcjJAZXhhbXBsZS5jb20iLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NTY2MjM4MiwiZXhwIjoxNzg1NzQ4NzgyfQ.-en34pDE-l-SlDSJFWzD7DaCQW-3voNm_8WXrQav_b2Kuh9f-VUC44IEDcO_Nchl",
-            "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0dXNlcjNAZXhhbXBsZS5jb20iLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NTY2MjI4MywiZXhwIjoxNzg1NzQ4NjgzfQ.5XDNNytAX-Kriyn8daFcnYh5Z7pKLaAQsY5FI2DkeFrYV5wYrZnTRWRz5GcCs2fW",
-            "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0dXNlcjRAZXhhbXBsZS5jb20iLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NTY2MjA0MywiZXhwIjoxNzg1NzQ4NDQzfQ.fX2-v2DtUgVWRnnlnxzWQcaTwyq3GUzBNsQa526OfV38RK68yrN_26j5AqZ2r3kI",
-            "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0dXNlcjVAZXhhbXBsZS5jb20iLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NTY2MjA0NywiZXhwIjoxNzg1NzQ4NDQ3fQ.0sgZ50Bm93FGSTlEKN3IG7d9Uxhm7eIjqQg8p4_tiEoff8QjjZEjVb3zDw9m_rdM"
+            "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0dXNlcjFAZXhhbXBsZS5jb20iLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NTc2MzM4MCwiZXhwIjoxNzg1ODQ5NzgwfQ.LeIq7a9C-TGO2QnKvaDuVbF4uTL4nbq6NzTZ9evB5S-7gfIRiA15hMq6z5UkyTix",
+            "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0dXNlcjJAZXhhbXBsZS5jb20iLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NTc2MzM4NSwiZXhwIjoxNzg1ODQ5Nzg1fQ.OE-VfkSTIjGpXv7NMjNu4Wx9eD9HcdBZJCzWGXoDeSLNyUVfXyQaEZjySp1diil_",
+            "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0dXNlcjNAZXhhbXBsZS5jb20iLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NTc2MzM5MCwiZXhwIjoxNzg1ODQ5NzkwfQ.pmPTHNL3fqUjEvCL-rXtoAr5dhuWEhonkYV6UsCsBBjeUJhthZREtVwdwUxjmM2r",
+            "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0dXNlcjRAZXhhbXBsZS5jb20iLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NTc2MzM5NCwiZXhwIjoxNzg1ODQ5Nzk0fQ.p38st8JXznJm7jPkfrDN-3UWeKVY5rAGeTs1X14Zbz0cVbXBFh02i_Fuw9RfhAmK",
+            "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0dXNlcjVAZXhhbXBsZS5jb20iLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NTc2MzM5OSwiZXhwIjoxNzg1ODQ5Nzk5fQ.CJJekfEvbWObpbtMahOP8_QXyWuuEf0lp_v2KHOLw0acePZDo2hWx3NnAfa7nI48"
     );
 
     public static void main(String[] args) throws Exception {
@@ -76,6 +76,15 @@ public class ConcurrencyTest {
         // 3. Staggered test: proves the SLOT_FULL -> WAITLISTED path under concurrent load,
         // not just under a single sequential request.
         runStaggeredWaitlistTest();
+
+        System.out.println();
+        runRetryAvailabilityTest();
+
+        System.out.println();
+        runConcurrentCancellationTest();
+
+        System.out.println();
+        runCancelWhileBookingRaceTest();
     }
 
     static long createResource(HttpClient client, String name, int capacity) throws Exception {
@@ -169,4 +178,205 @@ public class ConcurrencyTest {
         System.out.println();
         System.out.println("Done. Expect: all 3 wave 2 users -> 201 WAITLISTED, 0x VERSION_CONFLICT, 0x 500.");
     }
+
+    static void runRetryAvailabilityTest() throws Exception {    HttpClient client = HttpClient.newHttpClient();
+
+    System.out.println("=== Retry availability test (10 seats, 5 users) ===");
+    long resourceId = createResource(client, "Retry Availability Room", 10);
+
+    int n = USER_TOKENS.size();
+    ExecutorService pool = Executors.newFixedThreadPool(n);
+    CountDownLatch readyLatch = new CountDownLatch(n);
+    CountDownLatch startLatch = new CountDownLatch(1);
+    CountDownLatch doneLatch = new CountDownLatch(n);
+
+    for (int i = 0; i < n; i++) {
+        String token = USER_TOKENS.get(i);
+        int userIndex = i + 1;
+        pool.submit(() -> {
+            try {
+                String bookingBody = "{\"resourceId\":" + resourceId + "}";
+                HttpRequest req = HttpRequest.newBuilder()
+                        .uri(URI.create(BASE_URL + "/api/bookings"))
+                        .header("Content-Type", "application/json")
+                        .header("Authorization", "Bearer " + token)
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .POST(HttpRequest.BodyPublishers.ofString(bookingBody))
+                        .build();
+
+                readyLatch.countDown();
+                startLatch.await();
+
+                HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+                System.out.println("User " + userIndex + " -> " + resp.statusCode() + " " + resp.body());
+            } catch (Exception e) {
+                System.out.println("User " + userIndex + " -> ERROR " + e.getMessage());
+            } finally {
+                doneLatch.countDown();
+            }
+        });
+    }
+
+    readyLatch.await();
+    startLatch.countDown();
+    doneLatch.await();
+    pool.shutdown();
+
+    System.out.println();
+    System.out.println("Done. Expect: 5x 201 CONFIRMED, 0x WAITLISTED, 0x VERSION_CONFLICT (10 seats, 5 contenders, retry lets all succeed).");
 }
+
+static void runConcurrentCancellationTest() throws Exception {
+    HttpClient client = HttpClient.newHttpClient();
+
+    System.out.println("=== Concurrent cancellation test ===");
+    long resourceId = createResource(client, "Concurrent Cancel Room", 2);
+
+    // Book with 2 users first, capture booking IDs from each response
+    List<Long> bookingIds = new java.util.ArrayList<>();
+    for (int i = 0; i < 2; i++) {
+        String bookingBody = "{\"resourceId\":" + resourceId + "}";
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/api/bookings"))
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + USER_TOKENS.get(i))
+                .header("Idempotency-Key", UUID.randomUUID().toString())
+                .POST(HttpRequest.BodyPublishers.ofString(bookingBody))
+                .build();
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        String idStr = resp.body().replaceAll(".*\"id\":(\\d+).*", "$1");
+        bookingIds.add(Long.parseLong(idStr));
+        System.out.println("Setup booking - User " + (i + 1) + " -> " + resp.statusCode() + " id=" + idStr);
+    }
+    System.out.println();
+
+    // Cancel both simultaneously
+    CountDownLatch readyLatch = new CountDownLatch(2);
+    CountDownLatch startLatch = new CountDownLatch(1);
+    CountDownLatch doneLatch = new CountDownLatch(2);
+
+    for (int i = 0; i < 2; i++) {
+        String token = USER_TOKENS.get(i);
+        Long bookingId = bookingIds.get(i);
+        int userIndex = i + 1;
+        pool_submit_cancel(client, token, bookingId, userIndex, readyLatch, startLatch, doneLatch);
+    }
+
+    readyLatch.await();
+    startLatch.countDown();
+    doneLatch.await();
+
+    System.out.println();
+    System.out.println("Done. Expect: both cancellations succeed (204), no 500s, no uncaught version conflicts.");
+}
+
+static void pool_submit_cancel(HttpClient client, String token, Long bookingId, int userIndex,
+                               CountDownLatch readyLatch, CountDownLatch startLatch, CountDownLatch doneLatch) {
+    ExecutorService pool = Executors.newSingleThreadExecutor();
+    pool.submit(() -> {
+        try {
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(BASE_URL + "/api/bookings/" + bookingId))
+                    .header("Authorization", "Bearer " + token)
+                    .DELETE()
+                    .build();
+            readyLatch.countDown();
+            startLatch.await();
+            HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+            System.out.println("Cancel - User " + userIndex + " -> " + resp.statusCode() + " " + resp.body());
+        } catch (Exception e) {
+            System.out.println("Cancel - User " + userIndex + " -> ERROR " + e.getMessage());
+        } finally {
+            doneLatch.countDown();
+        }
+        pool.shutdown();
+    });
+}
+
+static void runCancelWhileBookingRaceTest() throws Exception {
+    HttpClient client = HttpClient.newHttpClient();
+
+    System.out.println("=== Cancel-while-booking race test ===");
+    long resourceId = createResource(client, "Cancel Race Room", 1);
+
+    // User 1 books (fills the only slot)
+    String bookingBody = "{\"resourceId\":" + resourceId + "}";
+    HttpRequest bookReq = HttpRequest.newBuilder()
+            .uri(URI.create(BASE_URL + "/api/bookings"))
+            .header("Content-Type", "application/json")
+            .header("Authorization", "Bearer " + USER_TOKENS.get(0))
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .POST(HttpRequest.BodyPublishers.ofString(bookingBody))
+            .build();
+    HttpResponse<String> bookResp = client.send(bookReq, HttpResponse.BodyHandlers.ofString());
+    String bookingIdStr = bookResp.body().replaceAll(".*\"id\":(\\d+).*", "$1");
+    long bookingId = Long.parseLong(bookingIdStr);
+    System.out.println("User 1 books -> " + bookResp.statusCode() + " id=" + bookingId);
+
+    // User 2 joins waitlist
+    HttpRequest waitReq = HttpRequest.newBuilder()
+            .uri(URI.create(BASE_URL + "/api/bookings"))
+            .header("Content-Type", "application/json")
+            .header("Authorization", "Bearer " + USER_TOKENS.get(1))
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .POST(HttpRequest.BodyPublishers.ofString(bookingBody))
+            .build();
+    HttpResponse<String> waitResp = client.send(waitReq, HttpResponse.BodyHandlers.ofString());
+    System.out.println("User 2 waitlists -> " + waitResp.statusCode() + " " + waitResp.body());
+    System.out.println();
+
+    // Simultaneously: User 1 cancels (triggers decrement + promotion of User 2),
+    // while User 3 fires a fresh booking attempt against the same resource.
+    CountDownLatch readyLatch = new CountDownLatch(2);
+    CountDownLatch startLatch = new CountDownLatch(1);
+    CountDownLatch doneLatch = new CountDownLatch(2);
+    ExecutorService pool = Executors.newFixedThreadPool(2);
+
+    pool.submit(() -> {
+        try {
+            HttpRequest cancelReq = HttpRequest.newBuilder()
+                    .uri(URI.create(BASE_URL + "/api/bookings/" + bookingId))
+                    .header("Authorization", "Bearer " + USER_TOKENS.get(0))
+                    .DELETE()
+                    .build();
+            readyLatch.countDown();
+            startLatch.await();
+            HttpResponse<String> resp = client.send(cancelReq, HttpResponse.BodyHandlers.ofString());
+            System.out.println("User 1 cancels -> " + resp.statusCode() + " " + resp.body());
+        } catch (Exception e) {
+            System.out.println("Cancel -> ERROR " + e.getMessage());
+        } finally {
+            doneLatch.countDown();
+        }
+    });
+
+    pool.submit(() -> {
+        try {
+            HttpRequest newBookReq = HttpRequest.newBuilder()
+                    .uri(URI.create(BASE_URL + "/api/bookings"))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + USER_TOKENS.get(2))
+                    .header("Idempotency-Key", UUID.randomUUID().toString())
+                    .POST(HttpRequest.BodyPublishers.ofString(bookingBody))
+                    .build();
+            readyLatch.countDown();
+            startLatch.await();
+            HttpResponse<String> resp = client.send(newBookReq, HttpResponse.BodyHandlers.ofString());
+            System.out.println("User 3 books -> " + resp.statusCode() + " " + resp.body());
+        } catch (Exception e) {
+            System.out.println("Book -> ERROR " + e.getMessage());
+        } finally {
+            doneLatch.countDown();
+        }
+    });
+
+    readyLatch.await();
+    startLatch.countDown();
+    doneLatch.await();
+    pool.shutdown();
+
+    System.out.println();
+    System.out.println("Done. Expect: User 1 cancel succeeds, User 2 gets promoted to CONFIRMED (check via GET /api/bookings/me), User 3 gets WAITLISTED (capacity 1, already taken by promoted User 2). No 500s anywhere.");
+    }
+}
+

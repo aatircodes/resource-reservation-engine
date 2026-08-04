@@ -29,6 +29,9 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final ResourceRepository resourceRepository;
     private final UserRepository userRepository;
+    private final BookingConfirmationAttempt bookingConfirmationAttempt;
+
+    private static final int MAX_RETRY_ATTEMPTS = 20;
 
     @Transactional
     public BookingResponse createBooking(CreateBookingRequest request, String idempotencyKey) {
@@ -52,33 +55,33 @@ public class BookingService {
             throw new DuplicateBookingException("You already have an active booking or waitlist entry for this resource");
         }
 
-        if (resource.getBookedCount() >= resource.getCapacity()) {
-            Booking waitlisted = new Booking();
-            waitlisted.setUser(user);
-            waitlisted.setResource(resource);
-            waitlisted.setStatus(BookingStatus.WAITLISTED);
-            waitlisted.setIdempotencyKey(idempotencyKey);
+        for (int attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
+            try {
+                Booking confirmed = bookingConfirmationAttempt.attemptConfirm(resource.getId(), user, idempotencyKey);
 
-            Booking savedWaitlisted = bookingRepository.save(waitlisted);
-            return toResponse(savedWaitlisted);
+                if (confirmed == null) {
+                    Booking waitlisted = new Booking();
+                    waitlisted.setUser(user);
+                    waitlisted.setResource(resource);
+                    waitlisted.setStatus(BookingStatus.WAITLISTED);
+                    waitlisted.setIdempotencyKey(idempotencyKey);
+
+                    Booking savedWaitlisted = bookingRepository.save(waitlisted);
+                    return toResponse(savedWaitlisted);
+                }
+
+                return toResponse(confirmed);
+
+            } catch (ObjectOptimisticLockingFailureException ex) {
+                if (attempt == MAX_RETRY_ATTEMPTS) {
+                    throw new BookingConflictException(ConflictReason.VERSION_CONFLICT,
+                            "Resource was updated concurrently after " + MAX_RETRY_ATTEMPTS + " attempts, please retry");
+                }
+            }
         }
 
-        resource.setBookedCount(resource.getBookedCount() + 1);
-        try {
-            resourceRepository.saveAndFlush(resource);
-        } catch (ObjectOptimisticLockingFailureException ex) {
-            throw new BookingConflictException(ConflictReason.VERSION_CONFLICT,
-                    "Resource was updated concurrently, please retry");
-        }
-
-        Booking booking = new Booking();
-        booking.setUser(user);
-        booking.setResource(resource);
-        booking.setStatus(BookingStatus.CONFIRMED);
-        booking.setIdempotencyKey(idempotencyKey);
-
-        Booking saved = bookingRepository.save(booking);
-        return toResponse(saved);
+        // Unreachable — the loop above always returns or throws.
+        throw new IllegalStateException("Booking retry loop exited without a result");
     }
 
     @Transactional
@@ -95,26 +98,28 @@ public class BookingService {
         boolean wasConfirmed = booking.getStatus() == BookingStatus.CONFIRMED;
 
         if (wasConfirmed) {
-            resource.setBookedCount(resource.getBookedCount() - 1);
-            try {
-                resourceRepository.saveAndFlush(resource);
-            } catch (ObjectOptimisticLockingFailureException ex) {
-                throw new BookingConflictException(ConflictReason.VERSION_CONFLICT,
-                        "Resource was updated concurrently, please retry");
-            }
+            retryOnConflict(() -> bookingConfirmationAttempt.attemptDecrement(resource.getId()));
         }
 
         booking.setStatus(BookingStatus.CANCELLED);
         bookingRepository.save(booking);
 
-       if (wasConfirmed) {
-            bookingRepository.findFirstByResourceIdAndStatusOrderByCreatedAtAscIdAsc(resource.getId(), BookingStatus.WAITLISTED)
-                    .ifPresent(promoted -> {
-                        resource.setBookedCount(resource.getBookedCount() + 1);
-                        resourceRepository.saveAndFlush(resource);
-                        promoted.setStatus(BookingStatus.CONFIRMED);
-                        bookingRepository.save(promoted);
-                    });
+        if (wasConfirmed) {
+            retryOnConflict(() -> bookingConfirmationAttempt.attemptPromotion(resource.getId()));
+        }
+    }
+
+    private void retryOnConflict(Runnable attempt) {
+        for (int i = 1; i <= MAX_RETRY_ATTEMPTS; i++) {
+            try {
+                attempt.run();
+                return;
+            } catch (ObjectOptimisticLockingFailureException ex) {
+                if (i == MAX_RETRY_ATTEMPTS) {
+                    throw new BookingConflictException(ConflictReason.VERSION_CONFLICT,
+                            "Resource was updated concurrently after " + MAX_RETRY_ATTEMPTS + " attempts, please retry");
+                }
+            }
         }
     }
 
