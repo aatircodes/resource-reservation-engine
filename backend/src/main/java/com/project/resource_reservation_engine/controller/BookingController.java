@@ -3,6 +3,7 @@ package com.project.resource_reservation_engine.controller;
 import com.project.resource_reservation_engine.dto.BookingResponse;
 import com.project.resource_reservation_engine.dto.CreateBookingRequest;
 import com.project.resource_reservation_engine.service.BookingService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -15,6 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/bookings")
 @RequiredArgsConstructor
+@SecurityRequirement(name = "bearerAuth")
 public class BookingController {
 
     private final BookingService bookingService;

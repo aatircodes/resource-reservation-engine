@@ -8,6 +8,8 @@ import com.project.resource_reservation_engine.repository.ResourceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class ResourceService {
@@ -29,6 +31,11 @@ public class ResourceService {
         return toResponse(resource);
     }
 
+    public List<ResourceResponse> getAllResources() {
+        return resourceRepository.findAll().stream()
+                .map(this::toResponse)
+                .toList();
+    }
     private ResourceResponse toResponse(Resource resource) {
         return new ResourceResponse(
                 resource.getId(),

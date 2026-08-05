@@ -35,11 +35,10 @@ Currently in active development. Completed so far:
 - Core domain (Phase 1): `Resource` and `Booking` entities with full happy-path CRUD, idempotency-key deduplication, and duplicate-active-booking prevention
 - Optimistic locking with capped retry (Phase 2): `bookedCount` counter guarded by `@Version`; on a lost version race, the request retries in a fresh transaction (via a dedicated `BookingConfirmationAttempt` bean) rather than failing immediately, re-checking availability each attempt so a request only stops retrying on success or on a fresh read showing the resource genuinely full — never purely because it lost a fixed number of races. A high safety cap bounds the loop against runaway retries without it ever being the deciding factor in a normal booking outcome. Verified under real concurrent load with a standalone Java test script, including a scenario with more available seats than contenders where every request correctly succeeds.
 - Waitlist + transactional promotion (Phase 4): capacity-full bookings are waitlisted rather than rejected, cancellation of a confirmed booking promotes the oldest waitlisted entry in the same transaction, live waitlist position exposed on bookings, verified under both raced and staggered concurrent load
+- API documentation (Phase 6): interactive Swagger UI via springdoc-openapi, JWT bearer authentication scoped to the resource and booking controllers only (auth endpoints excluded, since they don't require a token)
 
 
-Not yet built: Swagger/OpenAPI, deployment, frontend.
-
-## Progress Tracker
+Not yet built: deployment, frontend.## Progress Tracker
 
 | Phase | Description | Status |
 |---|---|---|
@@ -50,7 +49,7 @@ Not yet built: Swagger/OpenAPI, deployment, frontend.
 | 3 | Idempotency keys | Partially done (see below) |
 | 4 | Waitlist + transactional promotion | Done |
 | 5 | Testing — concurrency, idempotency, waitlist | Done |
-| 6 | Swagger/OpenAPI | Not started |
+| 6 | Swagger/OpenAPI | Done |
 | 7 | React frontend (if time allows) | Not started |
 | 8 | Deployment | Not started |
 | 9 | Documentation — README + design-decisions.md | Ongoing |
@@ -129,7 +128,7 @@ cd backend
 ./mvnw spring-boot:run
 ```
 
-The application starts on `http://localhost:8080`. Swagger UI will be available at `http://localhost:8080/swagger-ui.html` once springdoc-openapi is added (Phase 6 — not yet integrated as of this writing).
+The application starts on `http://localhost:8080`. Swagger UI is available at `http://localhost:8080/swagger-ui.html`. Protected endpoints can be tested directly from the UI via the Authorize button using a JWT obtained from `/api/auth/login`.
 
 ## API Documentation
 
