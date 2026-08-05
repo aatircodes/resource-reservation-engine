@@ -14,14 +14,14 @@ public class ConcurrencyTest {
 
     static final String BASE_URL = "http://localhost:8080";
 
-    static final String ADMIN_TOKEN = "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJhZG1pbkByZXNlcnZhdGlvbi1lbmdpbmUubG9jYWwiLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3ODU3NjMzNzQsImV4cCI6MTc4NTg0OTc3NH0.dTaQoPDDBL7BD8s4ImlUEBQlCjDirqQwJzymWGAFkPYe8-mEpYibUOXTzLnkiLVK";
+    static final String ADMIN_TOKEN = System.getenv("CONCURRENCY_TEST_ADMIN_TOKEN");
 
     static final List<String> USER_TOKENS = List.of(
-            "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0dXNlcjFAZXhhbXBsZS5jb20iLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NTc2MzM4MCwiZXhwIjoxNzg1ODQ5NzgwfQ.LeIq7a9C-TGO2QnKvaDuVbF4uTL4nbq6NzTZ9evB5S-7gfIRiA15hMq6z5UkyTix",
-            "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0dXNlcjJAZXhhbXBsZS5jb20iLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NTc2MzM4NSwiZXhwIjoxNzg1ODQ5Nzg1fQ.OE-VfkSTIjGpXv7NMjNu4Wx9eD9HcdBZJCzWGXoDeSLNyUVfXyQaEZjySp1diil_",
-            "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0dXNlcjNAZXhhbXBsZS5jb20iLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NTc2MzM5MCwiZXhwIjoxNzg1ODQ5NzkwfQ.pmPTHNL3fqUjEvCL-rXtoAr5dhuWEhonkYV6UsCsBBjeUJhthZREtVwdwUxjmM2r",
-            "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0dXNlcjRAZXhhbXBsZS5jb20iLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NTc2MzM5NCwiZXhwIjoxNzg1ODQ5Nzk0fQ.p38st8JXznJm7jPkfrDN-3UWeKVY5rAGeTs1X14Zbz0cVbXBFh02i_Fuw9RfhAmK",
-            "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0dXNlcjVAZXhhbXBsZS5jb20iLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc4NTc2MzM5OSwiZXhwIjoxNzg1ODQ5Nzk5fQ.CJJekfEvbWObpbtMahOP8_QXyWuuEf0lp_v2KHOLw0acePZDo2hWx3NnAfa7nI48"
+            System.getenv("CONCURRENCY_TEST_USER_TOKEN_1"),
+            System.getenv("CONCURRENCY_TEST_USER_TOKEN_2"),
+            System.getenv("CONCURRENCY_TEST_USER_TOKEN_3"),
+            System.getenv("CONCURRENCY_TEST_USER_TOKEN_4"),
+            System.getenv("CONCURRENCY_TEST_USER_TOKEN_5")
     );
 
     public static void main(String[] args) throws Exception {
@@ -70,7 +70,7 @@ public class ConcurrencyTest {
 
         pool.shutdown();
         System.out.println();
-        System.out.println("Done. Expect: 2x 201 CONFIRMED, rest 409 VERSION_CONFLICT (SLOT_FULL no longer applies here since all reads happen before any commit).");
+        System.out.println("Done. Expect: 2x 201 CONFIRMED, rest 201 WAITLISTED (losers retry on VERSION_CONFLICT, then waitlist once a fresh read shows the resource full).");
         System.out.println();
 
         // 3. Staggered test: proves the SLOT_FULL -> WAITLISTED path under concurrent load,

@@ -4,6 +4,7 @@ import com.project.resource_reservation_engine.dto.LoginRequest;
 import com.project.resource_reservation_engine.dto.LoginResponse;
 import com.project.resource_reservation_engine.dto.RegisterRequest;
 import com.project.resource_reservation_engine.dto.RegisterResponse;
+import com.project.resource_reservation_engine.exception.DuplicateEmailException;
 import com.project.resource_reservation_engine.entity.Role;
 import com.project.resource_reservation_engine.entity.User;
 import com.project.resource_reservation_engine.repository.UserRepository;
@@ -26,7 +27,7 @@ public class AuthService {
 
     public RegisterResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email is already registered");
+            throw new DuplicateEmailException("Email is already registered");
         }
 
         User user = new User(

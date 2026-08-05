@@ -35,6 +35,11 @@ public class BookingService {
 
     @Transactional
     public BookingResponse createBooking(CreateBookingRequest request, String idempotencyKey) {
+
+        if (idempotencyKey.isBlank()) {
+            throw new IllegalArgumentException("Idempotency-Key header must not be blank");
+        }
+
         Booking existing = bookingRepository.findByIdempotencyKey(idempotencyKey).orElse(null);
 
         if (existing != null) {
@@ -92,6 +97,11 @@ public class BookingService {
         User currentUser = getCurrentUser();
         if (!booking.getUser().getId().equals(currentUser.getId())) {
             throw new AccessDeniedException("You do not have permission to cancel this booking");
+        }
+
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new BookingConflictException(ConflictReason.ALREADY_CANCELLED,
+                    "This booking has already been cancelled");
         }
 
         Resource resource = booking.getResource();

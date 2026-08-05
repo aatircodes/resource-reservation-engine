@@ -37,7 +37,7 @@ Currently in active development. Completed so far:
 - Waitlist + transactional promotion (Phase 4): capacity-full bookings are waitlisted rather than rejected, cancellation of a confirmed booking promotes the oldest waitlisted entry in the same transaction, live waitlist position exposed on bookings, verified under both raced and staggered concurrent load
 
 
-Not yet built: Swagger/OpenAPI, load testing, deployment, frontend.
+Not yet built: Swagger/OpenAPI, deployment, frontend.
 
 ## Progress Tracker
 
@@ -49,7 +49,7 @@ Not yet built: Swagger/OpenAPI, load testing, deployment, frontend.
 | 2 | Optimistic locking + conflict handling | Done |
 | 3 | Idempotency keys | Partially done (see below) |
 | 4 | Waitlist + transactional promotion | Done |
-| 5 | Testing — concurrency, idempotency, waitlist | Done (load test with JMeter/Gatling still outstanding) |
+| 5 | Testing — concurrency, idempotency, waitlist | Done |
 | 6 | Swagger/OpenAPI | Not started |
 | 7 | React frontend (if time allows) | Not started |
 | 8 | Deployment | Not started |
@@ -134,6 +134,23 @@ The application starts on `http://localhost:8080`. Swagger UI will be available 
 ## API Documentation
 
 Live, interactive API documentation is served via Swagger UI directly from the running application rather than maintained as a separate static reference file — this avoids the two going out of sync as endpoints change. This README covers architecture, setup, and rationale; Swagger covers exact request/response shapes.
+
+## Design Decisions
+
+## Concurrency Test Script
+
+`backend/src/main/java/com/project/resource_reservation_engine/scripts/ConcurrencyTest.java` is a standalone
+script (plain `HttpClient`, no Spring/JUnit dependency) that fires simultaneous requests at a running instance
+of the application to verify race-condition handling — no overbooking, correct waitlist promotion, and safe
+concurrent cancellation.
+
+To run it:
+
+1. Start the application locally.
+2. Log in as the seeded admin and 5 separate users via `/api/auth/login` (e.g. through Postman) to obtain JWTs.
+3. In your IDE's run configuration for `ConcurrencyTest`, set these environment variables to the tokens obtained
+   above: `CONCURRENCY_TEST_ADMIN_TOKEN`, `CONCURRENCY_TEST_USER_TOKEN_1` through `CONCURRENCY_TEST_USER_TOKEN_5`.
+4. Run the script. JWTs expire, so these need to be refreshed each session.
 
 ## Design Decisions
 
