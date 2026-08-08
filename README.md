@@ -13,14 +13,14 @@ Naive booking systems that check availability and then write a reservation as tw
 - Spring Data JPA / Hibernate
 - Spring Security 7 (JWT-based, stateless, method-level authorization via `@PreAuthorize`)
 - MySQL
-- React (frontend, deferred — see Status below)
+- React (Vite, plain JavaScript, no UI/state/routing libraries)
 - springdoc-openapi (Swagger UI)
 
 ## Project Structure
 
 resource-reservation-engine/
 ├── backend/ Spring Boot application
-├── frontend/ React app (not yet started)
+├── frontend/ React app (Vite + React)
 ├── docs/
 │ └── design-decisions.md
 └── README.md
@@ -36,9 +36,11 @@ Currently in active development. Completed so far:
 - Optimistic locking with capped retry (Phase 2): `bookedCount` counter guarded by `@Version`; on a lost version race, the request retries in a fresh transaction (via a dedicated `BookingConfirmationAttempt` bean) rather than failing immediately, re-checking availability each attempt so a request only stops retrying on success or on a fresh read showing the resource genuinely full — never purely because it lost a fixed number of races. A high safety cap bounds the loop against runaway retries without it ever being the deciding factor in a normal booking outcome. Verified under real concurrent load with a standalone Java test script, including a scenario with more available seats than contenders where every request correctly succeeds.
 - Waitlist + transactional promotion (Phase 4): capacity-full bookings are waitlisted rather than rejected, cancellation of a confirmed booking promotes the oldest waitlisted entry in the same transaction, live waitlist position exposed on bookings, verified under both raced and staggered concurrent load
 - API documentation (Phase 6): interactive Swagger UI via springdoc-openapi, JWT bearer authentication scoped to the resource and booking controllers only (auth endpoints excluded, since they don't require a token)
+- React frontend (Phase 7): Vite + React, five screens (login/register, resources with booking, my bookings, concurrency demo panel), backed by `frontend/src/api/client.js` — a fetch wrapper reading the backend's actual error response shape (`error`, `fields`, `reason`). CORS configured on the backend to allow the Vite dev origin, including the custom `Idempotency-Key` header on preflight. See Frontend section below.
 
+Not yet built: deployment.
 
-Not yet built: deployment, frontend.## Progress Tracker
+## Progress Tracker
 
 | Phase | Description | Status |
 |---|---|---|
@@ -50,7 +52,7 @@ Not yet built: deployment, frontend.## Progress Tracker
 | 4 | Waitlist + transactional promotion | Done |
 | 5 | Testing — concurrency, idempotency, waitlist | Done |
 | 6 | Swagger/OpenAPI | Done |
-| 7 | React frontend (if time allows) | Not started |
+| 7 | React frontend | Done |
 | 8 | Deployment | Not started |
 | 9 | Documentation — README + design-decisions.md | Ongoing |
 
@@ -104,6 +106,29 @@ Authorization is enforced exclusively through `@PreAuthorize` with `@EnableMetho
 | GET | `/api/bookings/me` | Any authenticated user | List the caller's own bookings |
 
 Full request/response schemas are available via Swagger UI once the application is running (see below) — this README intentionally doesn't duplicate that reference.
+
+## Frontend
+
+Vite + React, plain JavaScript — no UI component library, no client-side routing library, no state management library beyond `useState`/`useEffect`. Navigation between Resources, My Bookings, and the Concurrency Demo is handled via in-app tab state, not a router, since the app is a single authenticated page with no distinct routes to bookmark.
+
+JWT and the logged-in user's identity live only in React state at the `App` root — never in `localStorage` or `sessionStorage` — consistent with this project's practice of keeping nothing sensitive persisted client-side. No optimistic UI: every booking or cancellation refetches from the server afterward rather than predicting the outcome client-side, which matters specifically for a project centered on getting concurrent state right.
+
+### Screens
+
+- **Login / Register** — combined, toggled client-side; login is the default view.
+- **Resources** — lists all resources with live `availableSlots`, books or joins a waitlist inline, no toast — the result renders directly on the resource's card.
+- **My Bookings** — lists the caller's own bookings (`CONFIRMED`, `WAITLISTED`, `CANCELLED`), cancel action removed once a booking is already cancelled.
+- **Concurrency demo** — logs into 8 fixed seeded accounts (`demo.user1@test.com`–`demo.user8@test.com`, registered once beforehand with a shared password) and fires their booking requests simultaneously via `Promise.all` against a resource selected from a live dropdown, timing each request with `performance.now()`. Demo-target resources are created manually via Swagger before each run rather than through the app, since resource creation has no concurrency angle and isn't part of this frontend's scope. The panel intentionally does not display the waitlist position returned in each request's immediate response — see "Why waitlist position is computed at read time, not stored" in [`docs/design-decisions.md`](docs/design-decisions.md) for why that value is unreliable in the same instant as the race and settles correctly only on a subsequent read.
+
+### Running the frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Starts on `http://localhost:5173`. Requires the backend running on `http://localhost:8080` with CORS configured to allow this origin (see `SecurityConfig`).
 
 ## Running Locally
 
