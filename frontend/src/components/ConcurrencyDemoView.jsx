@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getResources, login, createBooking } from '../api/client';
 
 const DEMO_EMAILS = Array.from({ length: 8 }, (_, i) => `demo.user${i + 1}@test.com`);
+// Hardcoded intentionally — these are throwaway seeded demo accounts with no real data, not a security boundary
 const DEMO_PASSWORD = 'Demo1234';
 
 function ConcurrencyDemoView({ token }) {

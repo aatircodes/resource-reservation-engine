@@ -1,0 +1,15 @@
+services:
+  reservation-engine-mysql:
+    image: mysql:8.0
+    container_name: reservation-engine-mysql
+    restart: "no"
+    environment:
+      MYSQL_ROOT_PASSWORD: "391281*MySQL@"
+      MYSQL_DATABASE: reservation_engine
+    ports:
+      - "3307:3306"
+    volumes:
+      - reservation-engine-mysql-data:/var/lib/mysql
+
+volumes:
+  reservation-engine-mysql-data:

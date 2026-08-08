@@ -2,9 +2,9 @@ spring:
   application:
     name: resource-reservation-engine
   datasource:
-    url: jdbc:mysql://localhost:3306/reservation_engine
+    url: jdbc:mysql://localhost:${DB_PORT:3306}/reservation_engine
     username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:391281*MySQL@}
+    password: ${DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: update
@@ -14,7 +14,7 @@ spring:
         format_sql: true
 
 jwt:
-  secret: ${JWT_SECRET:change-this-to-a-long-random-secret-in-production-min-256-bits}
+  secret: ${JWT_SECRET}
   expiration-ms: 86400000
 
 admin:

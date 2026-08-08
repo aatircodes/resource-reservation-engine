@@ -37,8 +37,10 @@ Currently in active development. Completed so far:
 - Waitlist + transactional promotion (Phase 4): capacity-full bookings are waitlisted rather than rejected, cancellation of a confirmed booking promotes the oldest waitlisted entry in the same transaction, live waitlist position exposed on bookings, verified under both raced and staggered concurrent load
 - API documentation (Phase 6): interactive Swagger UI via springdoc-openapi, JWT bearer authentication scoped to the resource and booking controllers only (auth endpoints excluded, since they don't require a token)
 - React frontend (Phase 7): Vite + React, five screens (login/register, resources with booking, my bookings, concurrency demo panel), backed by `frontend/src/api/client.js` — a fetch wrapper reading the backend's actual error response shape (`error`, `fields`, `reason`). CORS configured on the backend to allow the Vite dev origin, including the custom `Idempotency-Key` header on preflight. See Frontend section below.
+- Full end-to-end regression pass (auth, booking, waitlist promotion, concurrency demo, cross-session isolation, error handling) completed against a containerized local MySQL instance, covering both the backend API and the React frontend together.
+- Local MySQL now runnable via Docker Compose (`docker-compose.yml`) as an alternative to a native install, on a separate port so both can coexist. See Local Development with Docker below.
 
-Not yet built: deployment.
+Not yet built: containerized deployment of the application itself (Phase 8).
 
 ## Progress Tracker
 
@@ -53,7 +55,7 @@ Not yet built: deployment.
 | 5 | Testing — concurrency, idempotency, waitlist | Done |
 | 6 | Swagger/OpenAPI | Done |
 | 7 | React frontend | Done |
-| 8 | Deployment | Not started |
+| 8 | Deployment | In progress — local MySQL containerized, application Dockerfile and cloud deployment pending |
 | 9 | Documentation — README + design-decisions.md | Ongoing |
 
 Idempotency-key handling was built alongside Phase 1's booking creation rather than as a separate later pass, since a booking endpoint without it wasn't worth testing meaningfully on its own. Phase 3 remains scoped to hardening this further once Phase 2's locking changes the shape of a booking write.
@@ -118,7 +120,7 @@ JWT and the logged-in user's identity live only in React state at the `App` root
 - **Login / Register** — combined, toggled client-side; login is the default view.
 - **Resources** — lists all resources with live `availableSlots`, books or joins a waitlist inline, no toast — the result renders directly on the resource's card.
 - **My Bookings** — lists the caller's own bookings (`CONFIRMED`, `WAITLISTED`, `CANCELLED`), cancel action removed once a booking is already cancelled.
-- **Concurrency demo** — logs into 8 fixed seeded accounts (`demo.user1@test.com`–`demo.user8@test.com`, registered once beforehand with a shared password) and fires their booking requests simultaneously via `Promise.all` against a resource selected from a live dropdown, timing each request with `performance.now()`. Demo-target resources are created manually via Swagger before each run rather than through the app, since resource creation has no concurrency angle and isn't part of this frontend's scope. The panel intentionally does not display the waitlist position returned in each request's immediate response — see "Why waitlist position is computed at read time, not stored" in [`docs/design-decisions.md`](docs/design-decisions.md) for why that value is unreliable in the same instant as the race and settles correctly only on a subsequent read.
+- **Concurrency demo** — logs into 8 fixed seeded accounts (`demo.user1@test.com`–`demo.user8@test.com`, registered once beforehand with a shared password) and fires their booking requests simultaneously via `Promise.all` against a resource selected from a live dropdown, timing each request with `performance.now()`. The panel is deliberately restricted to these 8 fixed accounts rather than accepting arbitrary users — this is a controlled demonstration of the backend's race handling, not a general load-testing tool, so the account set is fixed and known in advance rather than dynamic. Demo-target resources are created manually via Swagger before each run rather than through the app, since resource creation has no concurrency angle and isn't part of this frontend's scope. The panel intentionally does not display the waitlist position returned in each request's immediate response — see "Why waitlist position is computed at read time, not stored" in [`docs/design-decisions.md`](docs/design-decisions.md) for why that value is unreliable in the same instant as the race and settles correctly only on a subsequent read.
 
 ### Running the frontend
 
@@ -130,6 +132,16 @@ npm run dev
 
 Starts on `http://localhost:5173`. Requires the backend running on `http://localhost:8080` with CORS configured to allow this origin (see `SecurityConfig`).
 
+## Local Development with Docker
+
+MySQL can run either as a native local install or as a Docker container — both are supported, distinguished by `DB_PORT`.
+
+```bash
+docker-compose up -d
+```
+
+This starts a MySQL 8.0 container (`reservation-engine-mysql`) on host port `3307`, mapped internally to MySQL's default `3306`, so it doesn't conflict with a native install running on `3306`. To point the application at the container, set `DB_PORT=3307`; leaving it unset connects to a native install on `3306` instead. The container uses a named volume for data persistence across restarts and has restart policy `no` — it must be started manually each session.
+
 ## Running Locally
 
 ### Prerequisites
@@ -140,11 +152,13 @@ Starts on `http://localhost:5173`. Requires the backend running on `http://local
 
 ### Environment Variables
 
-The following can be set to override local-dev defaults in `application.yml`. None are required to run locally, but all should be set explicitly before any non-local deployment:
+- `DB_USERNAME` — MySQL username; defaults to `root` if unset
+- `DB_PASSWORD` — MySQL password; **required**, no default. The application will not start without it.
+- `DB_PORT` — port the application connects to MySQL on; defaults to `3306` (native install). Set to `3307` to connect to the Dockerized MySQL instance instead — see Local Development with Docker below.
+- `JWT_SECRET` — signing key for JWTs; **required**, no default. Must be a long random string (min 256 bits).
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD` — credentials for the seeded admin account; both have local-dev defaults but should be overridden before any non-local deployment
 
-- `DB_USERNAME`, `DB_PASSWORD` — MySQL credentials
-- `JWT_SECRET` — signing key for JWTs; the default is a placeholder and must not be used outside local development
-- `ADMIN_EMAIL`, `ADMIN_PASSWORD` — credentials for the seeded admin account
+`DB_PASSWORD` and `JWT_SECRET` previously had placeholder defaults committed in `application.yml`; these were removed after the file was found to be tracked with real values, and both secrets were rotated as a result.
 
 ### Steps
 
