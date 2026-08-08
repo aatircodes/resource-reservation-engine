@@ -19,6 +19,11 @@
   font-synthesis: none;
 }
 
+.shell {
+  min-height: 100vh;
+  padding: 32px 24px 64px;
+}
+
 * { box-sizing: border-box; }
 
 body {
@@ -29,19 +34,19 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-.shell {
-  max-width: 780px;
-  margin: 0 auto;
-  padding: 32px 24px 64px;
-}
-
 .navbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 14px;
+  padding: 16px 40px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 28px;
+  background: var(--surface);
+}
+
+.page-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 40px 64px;
 }
 
 .nav-left {
@@ -242,6 +247,7 @@ button.full-width { width: 100%; }
 
 .badge.confirmed { background: var(--success-bg); color: var(--success-text); }
 .badge.waitlisted { background: var(--warning-bg); color: var(--warning-text); }
+.badge.cancelled { background: var(--surface-2); color: var(--text-muted); }
 .badge.mode { background: var(--accent-soft); color: var(--accent); }
 
 .row-actions {
