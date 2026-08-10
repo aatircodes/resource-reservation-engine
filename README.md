@@ -40,7 +40,7 @@ Currently in active development. Completed so far:
 - Full end-to-end regression pass (auth, booking, waitlist promotion, concurrency demo, cross-session isolation, error handling) completed against a containerized local MySQL instance, covering both the backend API and the React frontend together.
 - Local MySQL now runnable via Docker Compose (`docker-compose.yml`) as an alternative to a native install, on a separate port so both can coexist. See Local Development with Docker below.
 
-Not yet built: containerized deployment of the application itself (Phase 8).
+Not yet built: cloud deployment of the application itself (Phase 8 — a multi-stage Dockerfile and prod-profile configuration are in place; Render/Aiven/Vercel provisioning is in progress).
 
 ## Progress Tracker
 
@@ -55,7 +55,7 @@ Not yet built: containerized deployment of the application itself (Phase 8).
 | 5 | Testing — concurrency, idempotency, waitlist | Done |
 | 6 | Swagger/OpenAPI | Done |
 | 7 | React frontend | Done |
-| 8 | Deployment | In progress — local MySQL containerized, application Dockerfile and cloud deployment pending |
+| 8 | Deployment | In progress — local MySQL containerized, application Dockerfile and prod config done, cloud provisioning pending |
 | 9 | Documentation — README + design-decisions.md | Ongoing |
 
 Idempotency-key handling was built alongside Phase 1's booking creation rather than as a separate later pass, since a booking endpoint without it wasn't worth testing meaningfully on its own. Phase 3 remains scoped to hardening this further once Phase 2's locking changes the shape of a booking write.
