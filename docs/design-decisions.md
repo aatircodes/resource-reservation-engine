@@ -2,45 +2,61 @@
 
 This document explains the reasoning behind the significant architectural choices in this project, not just what was built but why. It's written to be defensible in a technical interview, not as a feature list.
 
-## Why email as the sole user identifier
+---
+
+## Authentication & Access
+
+### Why email as the sole user identifier
 
 The initial design included both a username and an email field on the user account, following the pattern of an earlier project. Partway through building authentication, that assumption was revisited: this system has no public profile, no displayed handle, and no scenario where two different identifiers serve two different audiences. Email was already required and already unique. Keeping a second unique identifier that served no distinct purpose would have been carrying over a pattern without a reason specific to this project. Username was removed entirely; email is used for login, for the JWT subject claim, and for ownership checks — for example, confirming a user can only cancel their own booking.
 
-## Why the admin account is seeded, not self-registered
+### Why the admin account is seeded, not self-registered
 
 This project has no tenant or organization concept — it's a single global system with one fixed ADMIN role responsible for managing resources. A "first user becomes admin" pattern makes sense in multi-tenant systems, where each tenant needs an onboarding moment and someone has to become that tenant's administrator. Here, there is no such moment: the first person to hit the registration endpoint might just be an ordinary test user, not someone who should be granted elevated privileges. Seeding the admin account via a `CommandLineRunner` at startup, with credentials supplied through environment variables, avoids a privilege-escalation window entirely and matches how a real single-tenant system's fixed operator account would typically be provisioned — created by configuration, not by a client request.
 
-## Why registration and login are separate steps
+### Why registration and login are separate steps
 
 Registration's responsibility is creating an account; login's responsibility is issuing a session credential for one that already exists. Collapsing them so that registration immediately returns a JWT would mean a single endpoint does two conceptually distinct things, which is harder to reason about and easier to get wrong as the system grows (for example, if email verification or approval steps are added later, they need to sit between account creation and first login — something a combined endpoint could not accommodate cleanly). This project keeps them distinct: registration returns a confirmation of account creation with no token; login is the only place a JWT is issued.
 
-## Why registration never allows a client-supplied role
+### Why registration never allows a client-supplied role
 
 The registration request DTO has no role field at all — not a field that gets overwritten server-side, but one that was never added to the DTO in the first place. Every account created through self-registration is a USER, unconditionally. This is a stronger guarantee than accepting a role value and discarding or overwriting it in the service layer, since there's no code path where a client-supplied role could ever reach persistence.
 
-## Why login failures return a generic error
+### Why login failures return a generic error
 
 When a login attempt fails, the response is the same "Invalid email or password" message regardless of whether the email doesn't exist or the password was simply wrong. Returning different messages for each case would allow an attacker to enumerate which emails have registered accounts, one request at a time. A single, generic failure message closes that off at effectively no cost to a legitimate user.
 
-## Why the JWT is never persisted client-side, even at the cost of losing session on refresh
+### Why the JWT is never persisted client-side, even at the cost of losing session on refresh
 
 The JWT and logged-in user's identity live only in React state at the `App` root — not in `localStorage`, not in `sessionStorage`. The direct consequence is that a manual browser refresh logs the user out and returns them to the login screen, since in-memory React state doesn't survive a reload. This was a deliberate tradeoff, not an oversight: persisting a JWT to any Web Storage API makes it readable by any script running in that page's origin, which is exactly what makes Web Storage a common target for token theft via XSS. Keeping the token in memory only means there's no token sitting on disk for a compromised tab or malicious script to read — the worst case is limited to the active session in memory.
 
 The alternative — persisting to `sessionStorage` to survive a refresh — was considered and rejected for this project specifically because the security property (nothing sensitive persisted client-side) was a stated design goal from early in the project, not an incidental default. Reintroducing storage-based persistence to fix a minor UX inconvenience (having to log back in after a refresh) would trade away that property for a benefit that matters more during manual testing than it would to a real user in normal usage. This is treated as an accepted UX cost, not a bug.
 
-## Why `@PreAuthorize` over path-matcher-based restriction
+### Why `@PreAuthorize` over path-matcher-based restriction
 
 Role-gated access could have been enforced two ways: listing role rules against URL patterns in `SecurityConfig`'s filter chain, or using `@PreAuthorize` on individual controller methods with `@EnableMethodSecurity` enabled. This project uses the latter, exclusively, for every role-gated endpoint. A path-matcher list in `SecurityConfig` grows into a separate file that has to be kept in sync with controller changes happening elsewhere, and gets harder to audit as the number of restricted routes increases. `@PreAuthorize` keeps the authorization rule on the method it protects, so the constraint is visible at the point it applies rather than cross-referenced from a different file. This was decided deliberately as a single project-wide convention rather than mixed with path-matcher rules, to avoid the two patterns coexisting and creating ambiguity about which one governs a given endpoint.
 
-## Why booking is one slot, not a quantity
+---
+
+## Booking & Concurrency Control
+
+### Why booking is one slot, not a quantity
 
 A booking request takes a `resourceId` and nothing else — there's no field for booking multiple slots at once. The domain is deliberately generic (any limited-capacity resource, not a specific booking type), and allowing a single request to claim more than one slot would mean every downstream mechanism — capacity checks, optimistic locking, waitlist position — has to account for partial-slot bookings instead of a simple one-request-one-slot model. Nothing in this project's scope calls for multi-slot bookings; if a real use case needed it, that would be a deliberate scope expansion, not a default built in speculatively.
 
-## Why a user can only hold one active booking per resource
+### Why a user can only hold one active booking per resource
 
 Testing surfaced a gap in the original happy-path implementation: nothing stopped a user from booking the same resource twice with two different idempotency keys, since idempotency keys only recognize retries of the *same* request, not repeated distinct requests. Left unaddressed, a single user could hold multiple simultaneous confirmed bookings on one resource, which doesn't match how most real booking systems behave and isn't something this project has a stated reason to allow. The fix checks, before creating a new booking, whether the requesting user already has a `CONFIRMED` booking on the same resource, and rejects the attempt with a `409 Conflict` if so. This check only applies to `CONFIRMED` bookings — a user who cancels a booking is free to rebook the same resource afterward, since cancellation is a legitimate way to release a hold on a resource, not a permanent restriction on ever booking it again.
 
-## How idempotency keys prevent duplicate bookings on client retry
+### Why optimistic locking was chosen over pessimistic locking
+
+Pessimistic locking (`SELECT ... FOR UPDATE`) was considered first, since it's the more obvious tool for "prevent two transactions from writing to the same row." It was rejected for this project because it solves the problem by making concurrent requests wait on each other rather than by making them succeed together: every simultaneous booking attempt against the same resource would be serialized at the database level, holding a row lock for the duration of each transaction. Under genuine contention — the exact scenario this project is built to demonstrate — that turns a burst of simultaneous requests into a queue, and the length of that queue is directly exposed to the client as latency, not as a design property worth showcasing.
+
+Optimistic locking (`@Version`) instead lets every request proceed concurrently and only detects a conflict at write time, when two transactions' version numbers disagree. The cost of a conflict is a retry in a fresh transaction rather than a lock wait, and — per the retry design covered below — that retry is availability-aware rather than a fixed number of blind attempts. This fits the project's actual write pattern: bookings are short, independent transactions with low per-request contention relative to resource capacity in the common case, and the rare high-contention case (the concurrency demo itself) is exactly where a capped, availability-checked retry outperforms a lock queue — successful requests aren't held up behind unrelated ones that will eventually fail anyway (e.g. a request from a user who will end up waitlisted regardless still holds up a pessimistic lock for its full duration).
+
+The tradeoff accepted here is wasted work under sustained heavy contention — every retry re-does a read and a conditional write rather than blocking until it's guaranteed to succeed — against pessimistic locking's tradeoff of guaranteed forward progress at the cost of serialized throughput. For this project's scale and demonstrated load (a handful of simultaneous requests against a single resource), optimistic locking's retry cost stays low while its concurrency ceiling stays high, which is the more interesting and more broadly applicable property to build and defend.
+
+### How idempotency keys prevent duplicate bookings on client retry
 
 `POST /api/bookings` requires an `Idempotency-Key` header, generated by the client — a random UUID is the typical choice, though the server only requires it be a unique string per booking attempt. Its job is narrow and specific: if a client's request succeeds on the server but the response is lost before the client sees it (a dropped connection, a timeout), the client can't tell whether the booking happened. If it retries with the same key, the server recognizes it's already processed that exact key and returns the original result instead of creating a second booking. A retry with the same key is treated as "did this already happen," not as a new request.
 
@@ -48,7 +64,7 @@ This is a different question from whether a user should be allowed to book the s
 
 **Known scope boundary:** this mechanism protects against retries that happen while the client is still running (a failed request being automatically retried within the same page load). It does not, by itself, survive a literal page refresh or app relaunch before a response is received — a naive client would generate a brand-new key on reload and lose the connection to its earlier attempt. A production frontend would need to persist the pending key (e.g. to `localStorage`) before sending the request, so a reload can recover and reuse it. This project's scope is the backend guarantee — the server behaves correctly for any request carrying a previously-seen key, regardless of why the client resent it — and treats fully reload-proof client behavior as a frontend concern outside what's being demonstrated here.
 
-## Why a full resource no longer returns an error
+### Why a full resource no longer returns an error
 
 Earlier, `Resource.bookedCount` (guarded by `@Version`) was checked against `capacity` before any write, and a full resource failed the request outright with a `SLOT_FULL` 409. Once a waitlist exists, that's the wrong response: a resource being full isn't a client error to reject, it's a normal branch with a defined next-best outcome. The pre-check still exists — `bookedCount >= capacity` — but now, instead of throwing, it creates a `Booking` with `status: WAITLISTED` and returns `201`. `SLOT_FULL` was removed from `ConflictReason` entirely, since there's no longer a code path that reaches it.
 
@@ -56,17 +72,17 @@ Earlier, `Resource.bookedCount` (guarded by `@Version`) was checked against `cap
 
 This is a meaningful behavior change for any client, worth calling out explicitly: a `201` from `POST /api/bookings` is no longer synonymous with holding a slot. Clients must read `status` in the response body.
 
-## Why waitlist entries reuse `Booking` instead of a separate entity
+### Why waitlist entries reuse `Booking` instead of a separate entity
 
 `Booking.status` already included a `WAITLISTED` value from Phase 1 onward, which made the decision straightforward: a waitlisted booking has the same shape as a confirmed one (owner, resource, timestamps) and answering "does this user already have something pending on this resource" only requires one table, not two. A separate `WaitlistEntry` entity would mean promotion has to move a row across tables — copy fields, delete from one, insert into the other — instead of a single `UPDATE bookings SET status = 'CONFIRMED'` on the existing row. Reuse also means the existing duplicate-booking guard, idempotency-key lookup, and ownership check on cancellation all apply to waitlisted bookings for free, with no parallel logic to maintain.
 
-## Why waitlist position is computed at read time, not stored
+### Why waitlist position is computed at read time, not stored
 
 Positions aren't persisted as an integer column on `Booking`. Storing one would mean every promotion or waitlist cancellation has to renumber every entry behind the affected one — exactly the kind of extra write-coordination this project exists to handle carefully, not accumulate incidentally. Instead, position is derived at read time: a count of waitlisted bookings for the same resource that were created before this one, ordered by `(createdAt, id)` — `id` breaks ties when two waitlist joins land in the same millisecond, which happens under genuine concurrent load and which timestamp ordering alone can't resolve deterministically. Promotion uses the same `(createdAt, id)` ordering to pick the true first-in-line waitlisted booking. The tradeoff is an extra query per waitlisted booking shown, which is cheap and avoids an entire class of renumbering bugs.
 
 **Known limitation — position can be momentarily inconsistent under simultaneous waitlist joins.** `createBooking()` runs inside `@Transactional`, so under `READ_COMMITTED` isolation a transaction can only see rows other transactions have already committed. If three users join a waitlist at the same instant, each transaction's position calculation runs before any of the three have committed, so each one can only see its own row and reports position 1 — not 1, 2, 3. This was caught directly by a staggered concurrency test that fired simultaneous waitlist joins against an already-full resource. The value self-corrects: it's a snapshot at creation time, not a stored fact, and any subsequent `GET /api/bookings/me` call runs in a fresh transaction after the earlier ones have committed, returning accurate, distinct positions. Fixing this at creation time would require a stronger isolation level or explicit locking on the waitlist query, which adds real contention for a number that's a display hint, not a value anything else in the system depends on for correctness — capacity enforcement and promotion never use this field. Treated as an accepted limitation rather than fixed.
 
-## Why a version conflict triggers a capped, availability-aware retry instead of failing immediately
+### Why a version conflict triggers a capped, availability-aware retry instead of failing immediately
 
 An earlier version of this project treated `VERSION_CONFLICT` as terminal: the losing request in a race got a `409` and had to be manually retried by the client. That was revisited once it became clear a fixed retry count creates its own bug — with capped-but-not-availability-checked retries, a request could exhaust its attempts and be waitlisted even while real capacity remained (concretely: 8 seats open, 5 simultaneous requests, one loses 3 straight races purely by chance and gets waitlisted despite room existing). A retry count is a proxy for contention, not for whether a seat exists, and letting the proxy decide the outcome was the actual defect.
 
@@ -76,7 +92,7 @@ Each retry runs in its own fresh transaction via `Propagation.REQUIRES_NEW`, so 
 
 Verified with a concurrency test firing 5 simultaneous requests against a 10-capacity resource: all 5 succeed as `CONFIRMED`, none waitlisted, despite guaranteed contention on the shared `bookedCount` write.
 
-## Why cancellation retries the same way, and what changed about its transaction shape
+### Why cancellation retries the same way, and what changed about its transaction shape
 
 Cancelling a `CONFIRMED` booking does two things: decrement `bookedCount`, then promote the oldest waitlisted booking if one exists. The promotion step originally ran uncaught — the reasoning at the time was that both steps belonged to the same transaction as the cancellation, so nothing external could race in between. That reasoning was wrong: being in the same transaction only protects against racing *yourself*: a completely unrelated transaction (e.g. another user's booking retry) can still write to the same resource row between this transaction's own two separate `saveAndFlush()` calls, since each is its own round trip to the database. If that happened, the uncaught `ObjectOptimisticLockingFailureException` would propagate to a generic `500`, and — because it was one transaction — roll back the cancellation itself along with it, so a user's own cancellation could fail purely because someone else was booking a different slot on the same resource at that moment.
 
@@ -84,16 +100,26 @@ Both steps (`attemptDecrement`, `attemptPromotion`) now use the same `REQUIRES_N
 
 **Known limitation — decrement and promotion are now two independently committed transactions, not one.** If the server crashes between the decrement committing and the promotion running, the cancellation and the freed slot are both correctly persisted, but the next-in-line waitlisted user would not be promoted automatically. This is a narrow window (requires a mid-request crash) and is judged an acceptable tradeoff against the alternative — a single uncaught failure point that could fail an unrelated user's cancellation outright, which is a more likely and more visible failure mode under normal concurrent load. Verified directly: a test simultaneously cancelling a confirmed booking (triggering decrement + promotion) while a different user concurrently attempts a fresh booking on the same resource — both operations complete without a `500`, and the waitlisted user is correctly promoted.
 
-## Why `application.yml`'s DB password and JWT secret no longer have fallback defaults
+---
+
+## Infrastructure & Security
+
+### Why `application.yml`'s DB password and JWT secret no longer have fallback defaults
 
 Early in the project, `DB_PASSWORD` and `JWT_SECRET` were given hardcoded fallback values directly in `application.yml` (e.g. `${JWT_SECRET:some-placeholder}`), so the application would run locally without any environment setup. That file was committed to the repository with those defaults present, which meant a real local MySQL password was sitting in git history in plaintext. Once identified, both defaults were removed entirely — the properties now have no fallback, so the application fails to start unless `DB_PASSWORD` and `JWT_SECRET` are explicitly set as environment variables. The MySQL password was also rotated, since a value that was ever committed has to be treated as compromised regardless of whether the repository is public.
 
 This is distinct from `DEMO_PASSWORD` in the frontend's concurrency demo panel, which remains intentionally hardcoded: that value gates access to eight throwaway seeded accounts with no real data behind them, so there is nothing of consequence to protect. The DB password and JWT signing secret protect actual infrastructure and every issued session's integrity, which is a different risk category — hence the different treatment.
 
-## Why MySQL can run natively or in a Docker container, distinguished by one env var
+### Why MySQL can run natively or in a Docker container, distinguished by one env var
 
 Local MySQL was originally a native install only. A Docker Compose setup (`docker-compose.yml`) was added as a second option — a container running on host port `3307` rather than MySQL's default `3306`, so it can coexist with a native install rather than requiring one or the other to be stopped. `application.yml`'s datasource URL was parameterized with a `DB_PORT` variable (defaulting to `3306`) so switching between the two is a single environment variable change, not a config file edit. This was done ahead of Phase 8 deployment work specifically to validate that the application's database connectivity is fully environment-driven — no hardcoded assumptions about where MySQL lives — before introducing a cloud-hosted database in production.
 
-## (To be added as later phases are built)
+### Why the deployed backend uses a database-scoped MySQL user instead of the instance superuser
 
-- Why optimistic locking was chosen over pessimistic locking
+This project's MySQL database (`resource_reservation_engine`) is hosted on the same Aiven MySQL instance as an earlier project's database, since the Aiven free tier permits only one free MySQL service per organization. The instance's default credential (`avnadmin`) has superuser access to every database on that instance, including the sibling project's. Using it as this application's runtime credential would mean a bug, leaked log, or compromised environment variable in this project could reach the other project's data with no barrier in between.
+
+A second MySQL user was created and granted privileges scoped to `resource_reservation_engine` only (`SELECT`, `INSERT`, `UPDATE`, `DELETE`, `CREATE`, `ALTER`, `INDEX`, `REFERENCES`, `DROP` — the DDL grants are needed because `ddl-auto: update` issues schema changes at startup). This makes the isolation structural rather than conventional: the credential itself cannot reach the other database, regardless of what the application code does. The instance-level superuser credential is never used by either deployed application.
+
+### Why `/actuator/health` is exposed and permitted without authentication
+
+Render's health check polls a configured HTTP path to determine whether the service is live, and cannot supply a JWT to do so. Spring Boot Actuator's health endpoint was added and explicitly scoped to expose only `health` (`management.endpoints.web.exposure.include: health`), with `show-details: never` so the response is a bare `{"status":"UP"}` rather than including details like datasource connectivity — that avoids leaking internal infrastructure state to an unauthenticated caller. `/actuator/health` was then added as a `permitAll()` matcher in `SecurityConfig`, ahead of the `anyRequest().authenticated()` fallback, so Render's health check succeeds without requiring the deployment platform to hold any application credential.
